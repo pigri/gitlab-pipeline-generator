@@ -1,0 +1,8 @@
+install-parent-pom:
+  stage: install-parent-pom
+  script:
+    - AWS_DEFAULT_REGION=us-west-2 ./mvnw -U -B -Dmaven.test.skip=true --non-recursive deploy
+  rules:
+    - if: '$CI_COMMIT_REF_NAME != "promote" || $CI_COMMIT_REF_NAME != "promote_tag"'
+      changes:
+        - pom.xml

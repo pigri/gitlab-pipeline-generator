@@ -1,0 +1,50 @@
+postman-functional-tests:
+  stage: test
+  allow_failure: false
+  script:
+    - export HOME=$CI_PROJECT_DIR
+    - aws ecr get-login-password  --region us-west-2 | docker login --username AWS --password-stdin $${AWS_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com
+    # - export COMPOSE_HTTP_TIMEOUT=240
+    - AWS_DEFAULT_REGION=us-west-2 ./mvnw -B -T 1.5C -Dmaven\.test\.skip=true -U clean package
+    - docker-compose -f docker-compose.yml -f docker-compose.override.test.yml up -d --build
+    - |
+      docker run --rm \
+       --net example_network \
+       -v $CI_PROJECT_DIR/test:/test \
+       -e POSTMAN_KEY=$POSTMAN_KEY \
+       postman/newman \
+        run \
+        17013653-71afcc04-4db4-490e-8968-ac9f9447baca \
+        --postman-api-key=$POSTMAN_KEY \
+        -e /test/ci/postman/env.json \
+        --verbose \
+        --reporters cli,html,junit \
+        --reporter-junit-export /test/report.xml \
+        --reporter-html-export /test/report.html
+  after_script:
+    - |
+      if [[ "$CI_JOB_STATUS" == "failed" ]]; then
+        echo ${LOG_CONTAINERS} | xargs docker logs
+        if [[ `docker ps -f health=unhealthy -q` != "" ]]; then
+          docker ps
+          docker ps -f health=unhealthy -q | xargs docker logs;
+          docker ps -f health=unhealthy -q | xargs docker inspect;
+        fi
+      fi
+    - docker-compose -f docker-compose.yml -f docker-compose.override.test.yml down
+  artifacts:
+    when: always
+    expire_in: 2 days
+    paths:
+      - test/report.xml
+      - test/report.html
+    reports:
+      junit: test/report.xml
+  needs: []
+  rules:
+    - if: '$BUILD_TYPE == "service"'
+      when: never
+    - if: '$FULL_DEPLOY == "true"'
+      when: never
+    - if: '$CI_PROJECT_NAME == "core-services"'
+      when: never

@@ -1,0 +1,59 @@
+stages:
+  - setup
+  - triggers
+
+generator:
+  stage: setup
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  script:
+  - |
+    git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/mangopay/cicd-templates/
+    cd cicd-templates
+    git checkout ${PIPELINE_BRANCH}
+    cd ${PIPELINE_VERSION}/pipeline-generator
+    terraform init
+    terraform apply -auto-approve -var=ci_project_dir=${CI_PROJECT_DIR} -var=service_name=service-default -var=service_enabled=false -var=api_enabled=false -var=main_enabled=true -var=pipeline_branch=${PIPELINE_BRANCH} -var=cluster=cluster-default -var=full_deploy=${FULL_DEPLOY} -var=log_containers=${LOG_CONTAINERS} -var="services=$(echo -en $(env | grep '^SERVICE_*' | grep true | tr -d '=true' | tr '\n' ' '| xargs | sed 's/ /\\n/g') | jq --raw-input . | jq -M -c --slurp)"
+    rm -rf terraform.tfstate*
+    cd ../../..
+    for service in service-*
+    do
+      # if [[ "$service" != "service-*" ]]; then
+        if [ -f "$service/.disabled_service"  ]; then
+            echo "$service is disabled"
+        else
+          cluster=$(cat ${service}/ci/production.tfvars | grep "cluster" | tr -d '[:space:]|"' | sed 's/cluster=//')
+          cd cicd-templates/${PIPELINE_VERSION}/pipeline-generator
+          rm -rf terraform.tfstate*
+          terraform apply -auto-approve -var=ci_project_dir=${CI_PROJECT_DIR} -var=service_name=${service} -var=pipeline_branch=${PIPELINE_BRANCH} -var=api_enabled=false -var=service_enabled=true -var=main_enabled=false -var=cluster=${cluster} -var=log_containers=${LOG_CONTAINERS}
+          cd ../../..
+        fi
+      # else
+      #   echo "Service not found - $i"
+      # fi
+    done
+    for api in api-*
+    do
+      echo $api
+      # if [[ "$api" != "api-*" ]]; then
+      if [ -f "$api/.disabled_service"  ] || [ "$api" = "api-*" ]; then
+        echo "$api is disabled or no api submodule is present in this project"
+      else
+        echo "generating CI files for $api"
+        cd cicd-templates/${PIPELINE_VERSION}/pipeline-generator
+        rm -rf terraform.tfstate*
+        terraform apply -auto-approve -var=ci_project_dir=${CI_PROJECT_DIR} -var=service_name=${api} -var=pipeline_branch=${PIPELINE_BRANCH} -var=api_enabled=true -var=main_enabled=false -var=cluster=cluster-default -var=full_deploy=${FULL_DEPLOY} -var=log_containers=${LOG_CONTAINERS} -var="services=$(echo -en $(env | grep '^SERVICE_*' | grep true | tr -d '=true' | tr '\n' ' '| xargs | sed 's/ /\\n/g') | jq --raw-input . | jq -M -c --slurp)"
+        cd ../../..
+      fi
+      # fi
+    done
+  artifacts:
+    paths:
+      - generated-pipeline.yml
+
+child-pipeline:
+  stage: triggers
+  trigger:
+    include:
+      - artifact: generated-pipeline.yml
+        job: generator
+    strategy: depend

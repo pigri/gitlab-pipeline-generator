@@ -1,0 +1,25 @@
+variables:
+  AWS_DEFAULT_REGION: us-west-2
+  MAVEN_OPTS: '-Duser.home=$CI_PROJECT_DIR'
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://docker:2375
+
+image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com/example/ci:java17-amd64
+
+services:
+  - name: $${AWS_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com/docker:stable-dind
+    alias: docker
+
+before_script:
+  - source ci/setup-env.sh
+  - |
+    if hash aws 2>/dev/null; then
+      if hash docker 2>/dev/null; then
+        aws ecr get-login-password  --region us-west-2 | docker login --username AWS --password-stdin $${AWS_ACCOUNT_ID}.dkr.ecr.$${AWS_REGION}.amazonaws.com
+      fi
+    fi
+
+cache:
+  key: '$CI_COMMIT_REF_SLUG'
+  paths:
+    - .m2/repository

@@ -1,0 +1,13 @@
+graphql:
+  stage: triggers
+  script:
+    - echo "Disabled script" 
+    # - curl -X POST --fail -F token=${CI_TRIGGER_TOKEN} -F ref=${CI_COMMIT_REF_NAME} -F "variables[SERVICE_GRAPHQL]=true" https://gitlab.com/api/v4/projects/22883520/trigger/pipeline
+  rules:
+    - if: '$SERVICE_GRAPHQL == "true"'
+      when: never
+    - if: '$CI_PROJECT_NAME != "core-services"'
+      when: never
+    - if: '$CI_COMMIT_REF_NAME == "develop" && $CI_PROJECT_NAME == "core-services"'
+      changes:
+        - "graphql/**/*"

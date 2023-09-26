@@ -1,0 +1,11 @@
+stages:
+  - setup
+  - triggers
+
+variables:
+  SERVICE_TYPE: example-services
+
+include:
+  - project: 'example/cicd-templates'
+    ref: ${PIPELINE_BRANCH}
+    file: "${PIPELINE_VERSION}/pipeline-generator/generator-build.yml"

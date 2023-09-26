@@ -1,0 +1,34 @@
+test-base:
+  stage: test-base
+  script:
+    - cd ${SERVICE_TYPE}-base
+    - AWS_DEFAULT_REGION=us-west-2 ./mvnw -U -B install
+  rules:
+    - if: '$BUILD_TYPE == "service"'
+      when: always
+    - if: '$FULL_DEPLOY == "true"'
+      when: never
+    - if: '$CI_PROJECT_NAME =~ /^core-services*/'
+      when: never
+    - if: '$CI_PROJECT_NAME =~ /^core-payments/'
+      when: never
+    - if: '$CI_PROJECT_NAME != "core-services"'
+      when: always
+
+deploy-base:
+  stage: deploy-base
+  script:
+    - cd ${SERVICE_TYPE}-base
+    - AWS_DEFAULT_REGION=us-west-2 ./mvnw versions:set -DnewVersion=`echo -e "$CI_COMMIT_TAG" | sed -e "s/\.RELEASE//g"`
+    - AWS_DEFAULT_REGION=us-west-2 ./mvnw -B -Dmaven.test.skip=true deploy
+  rules:
+    - if: '$CI_PROJECT_NAME =~ /^core-services*/'
+      when: never
+    - if: '$CI_PROJECT_NAME =~ /^core-payments/'
+      when: never
+    - if: '($BUILD_TYPE == "service" && $CI_PROJECT_NAME != "core-services")'
+      when: always
+    - if: '$CI_PROJECT_NAME != "core-services"'
+      changes:
+        - ${SERVICE_TYPE}-base/**/*
+        - .gitlab-ci.yml
