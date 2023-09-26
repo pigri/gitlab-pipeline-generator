@@ -41,7 +41,7 @@ task-definition-${service_name_full}:
   script:
     - |
       export TF_VAR_image_tag=$${CI_COMMIT_SHA}
-      git clone --depth=1 https://gitlab-ci-token:$${CI_JOB_TOKEN}@gitlab.com/mangopay/cicd-templates/
+      git clone --depth=1 https://gitlab-ci-token:$${CI_JOB_TOKEN}@gitlab.com/example/cicd-templates/
       cd cicd-templates/v2-test/task-definition
       terraform init
       terraform apply -auto-approve -var-file=$${CI_PROJECT_DIR}/${service_name_full}/ci/$${AWS_ENV}.tfvars -var=ci_project_dir=$${CI_PROJECT_DIR}

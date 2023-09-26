@@ -7,7 +7,7 @@ generator:
   image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
   script:
   - |
-    git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/mangopay/cicd-templates/
+    git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/example/cicd-templates/
     cd cicd-templates
     git checkout ${PIPELINE_BRANCH}
     cd ${PIPELINE_VERSION}/pipeline-generator
